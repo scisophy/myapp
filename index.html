@@ -1,27 +1,93 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="dark">
+<!-- ============================================================
+     【这个文件是什么】
+     index.html 是网页的「骨架 / 结构」，只负责摆放内容，
+     不负责好看（颜色样式在 style.css），也不负责计算（逻辑在 script.js）。
+
+     HTML 的工作方式：用一对对「标签」把内容包起来，形成一棵树。
+     例如 <div class="calc"> ... </div> 表示这里是一个区块。
+
+     浏览器读文件的顺序是从上到下，所以我们把 <script> 放在最后一行，
+     保证 JS 执行时，页面里的按钮都已经存在了。
+     ============================================================ -->
+
+<!-- lang="zh-CN" 告诉浏览器/屏幕阅读器：这个页面是简体中文 -->
+<!-- data-theme="light" 是自定义属性，用来记录当前主题。
+     CSS 里写 html[data-theme="dark"] {...} 就能切换整套配色。
+     初始值写 light，就是「日间羊皮纸」古典配色。 -->
+<html lang="zh-CN" data-theme="light">
+
 <head>
+  <!-- head 里的内容不会显示在页面上，是给浏览器看的「说明书」 -->
+
+  <!-- charset：字符编码。用 UTF-8 才不会出现中文乱码 -->
   <meta charset="UTF-8" />
+
+  <!-- viewport：手机浏览器专用设置。
+       width=device-width 表示「页面宽度 = 手机屏幕宽度」；
+       initial-scale=1.0 表示「初始缩放比例 100%，不要自动放大缩小」。
+       没有这一行，手机上看到的页面会像缩小版的电脑页面 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- 浏览器标签页上显示的标题 -->
   <title>计算器 · Calculator</title>
+
+  <!-- 引入外部样式表。href 是文件路径，这里是同目录下的 style.css -->
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
+  <!-- ============================================================
+       class 命名说明（BEM 风格，是社区里很流行的一种命名约定）
+       .app              区块名
+       .brand__mark      双下划线：区块 .brand 里面的一个「元素」
+       .key--num         双横线：.key 的一种「变体/状态」
+       这样命名可以避免不同区块的样式互相打架，也方便看懂层级关系。
+       ============================================================ -->
+
+  <!-- .app 是外层大容器：把「计算器」和「历史记录」并排放在一起 -->
   <div class="app">
+
+    <!-- <main> 是语义标签，表示「这个页面的主要内容」。
+         浏览器显示效果和 <div> 一样，但有利于搜索引擎和无障碍阅读 -->
     <main class="calc">
+
+      <!-- ---------------- 顶部：标题 + 功能按钮 ---------------- -->
       <header class="calc__head">
         <div class="brand">
-          <span class="brand__dot"></span>
-          <h1>计算器</h1>
+          <!-- 装饰用的菱形符号，纯好看，没有实际功能 -->
+          <span class="brand__mark">❖</span>
+          <div class="brand__name">
+            <!-- h1 是「一级标题」，一个页面通常只写一个，表示最重要的标题 -->
+            <h1>计算器</h1>
+            <!-- em 原本表示「强调」，这里借它显示小号英文副标题，
+                 具体外观（小字、字距）由 CSS 控制 -->
+            <em>Calculator</em>
+          </div>
         </div>
+
         <div class="head-actions">
+          <!-- 【重点】每个 <button> 都写了 type="button"。
+               按钮在 <form> 表单里默认是 type="submit"（提交表单），
+               我们的计算器没有表单，但养成习惯写上可以避免意外行为。
+               id="historyBtn" 是这块按钮的「身份证号」，JavaScript 靠它找到这个按钮。
+               aria-label 是给读屏软件（视障用户）念出来的说明文字 -->
           <button id="historyBtn" class="icon-btn" type="button" title="历史记录" aria-label="历史记录" aria-expanded="false">
+            <!-- SVG 是「矢量图」：用数学坐标画图，放大不会模糊。
+                 viewBox="0 0 24 24" 意思是：把这块画布看作 24×24 的坐标系。
+                 path 的 d 属性是画线指令；circle 是画圆。
+                 aria-hidden="true" 表示「读屏软件忽略这张图」，
+                 因为按钮本身已有 aria-label 说明用途了 -->
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 7v5l3.5 2" />
               <circle cx="12" cy="12" r="9" />
             </svg>
           </button>
+
           <button id="themeBtn" class="icon-btn" type="button" title="切换主题" aria-label="切换主题">
+            <!-- 这里放了两张图：月亮和太阳。
+                 它们不是用 JS 切换的，而是纯 CSS 控制显示/隐藏：
+                 亮色主题只显示太阳，暗色主题只显示月亮。 -->
             <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" />
             </svg>
@@ -33,18 +99,44 @@
         </div>
       </header>
 
+      <!-- 花饰分隔线：三个小元素横排（左右两条渐变线 + 中间菱形）。
+           aria-hidden="true"：纯装饰，读屏软件直接跳过 -->
+      <div class="ornament" aria-hidden="true">
+        <span></span>❖<span></span>
+      </div>
+
+      <!-- ---------------- 中间：显示屏 ---------------- -->
       <section class="display">
+        <!-- 第一行小字：显示你正在输入的「算式原文」，例如 12+3×
+             id="expr" → 对应 JS 里的 document.getElementById("expr")
+             aria-hidden="true" 表示读屏软件不用念这一行（避免重复念两遍） -->
         <div class="display__expr" id="expr" aria-hidden="true"></div>
+
+        <!-- 第二行大字：显示实时计算结果。初始内容先写一个 0。
+             【无障碍知识点】aria-live="polite" 的意思是：
+             这块内容一旦变化，请读屏软件「温和地」播报出来，
+             这样视障用户按完按钮也能听到新结果。 -->
         <div class="display__result" id="result" aria-live="polite">0</div>
       </section>
 
+      <!-- ---------------- 下方：按键区 ---------------- -->
+      <!-- 【核心机制】每个按键都用两个自定义属性告诉 JS 自己是谁：
+           data-value="7"    → 按下后要把字符串 "7" 插进算式里
+           data-action="equals" → 按下后要执行「求值」这个动作
+           JS 通过 button.dataset.value / button.dataset.action 读取它们。
+           好处是：HTML 里描述「这个键是什么」，JS 里只写一次处理规则，
+           要加新按钮只需复制一行改数据，不用改 JS。 -->
       <div class="keys" id="keys">
+
+        <!-- 第一行：科学函数键。笔记：data-value 是 "sin(" 带着左括号，
+             因为点一下 sin 就顺便帮你开好括号，少按一次 -->
         <button class="key key--fn" type="button" data-value="sin(">sin</button>
         <button class="key key--fn" type="button" data-value="cos(">cos</button>
         <button class="key key--fn" type="button" data-value="tan(">tan</button>
         <button class="key key--fn" type="button" data-value="ln(">ln</button>
         <button class="key key--fn" type="button" data-value="log(">log</button>
 
+        <!-- 第二行：AC 清空 / 退格 / 括号 / 除号 -->
         <button class="key key--danger" type="button" data-action="clear">AC</button>
         <button class="key key--soft" type="button" data-action="back" aria-label="退格">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -52,28 +144,36 @@
             <path d="M13 9.5l5 5M18 9.5l-5 5" />
           </svg>
         </button>
+        <!-- 注意：括号字面量在 HTML 里不需要转义，直接写 ( 和 ) 就行 -->
         <button class="key key--soft" type="button" data-value="(">(</button>
         <button class="key key--soft" type="button" data-value=")">)</button>
         <button class="key key--op" type="button" data-value="÷">÷</button>
 
+        <!-- 第三行：7 8 9 % × -->
         <button class="key key--num" type="button" data-value="7">7</button>
         <button class="key key--num" type="button" data-value="8">8</button>
         <button class="key key--num" type="button" data-value="9">9</button>
         <button class="key key--op" type="button" data-value="%">%</button>
         <button class="key key--op" type="button" data-value="×">×</button>
 
+        <!-- 第四行：4 5 6 ± −
+             注意这里的减号不是键盘上的 -，而是 &minus; 这个「数学减号」字符（−），
+             它更长更好看。JS 里为了区分，用常量 MINUS 记着它 -->
         <button class="key key--num" type="button" data-value="4">4</button>
         <button class="key key--num" type="button" data-value="5">5</button>
         <button class="key key--num" type="button" data-value="6">6</button>
         <button class="key key--soft" type="button" data-action="negate" aria-label="正负号">±</button>
         <button class="key key--op" type="button" data-value="−">−</button>
 
+        <!-- 第五行：1 2 3 √ + -->
         <button class="key key--num" type="button" data-value="1">1</button>
         <button class="key key--num" type="button" data-value="2">2</button>
         <button class="key key--num" type="button" data-value="3">3</button>
         <button class="key key--soft" type="button" data-value="√(" aria-label="开平方根">√</button>
         <button class="key key--op" type="button" data-value="+">+</button>
 
+        <!-- 第六行：0 . π x² =
+             x² 按钮上显示的是 x²，实际插入的字符是 "²"（上标 2） -->
         <button class="key key--num" type="button" data-value="0">0</button>
         <button class="key key--num" type="button" data-value=".">.</button>
         <button class="key key--soft" type="button" data-value="π">π</button>
@@ -82,16 +182,28 @@
       </div>
     </main>
 
+    <!-- ---------------- 右侧：历史记录面板 ----------------
+         <aside> 是语义标签，表示「和主内容相关、但属于附属信息」的内容。
+         这个面板默认是隐藏的（CSS 里 display:none），
+         点击右上角时钟图标后 JS 会给它加上 is-open 类，它才显示出来 -->
     <aside class="history" id="historyPanel">
       <div class="history__head">
         <h2>历史记录</h2>
         <button id="clearHistoryBtn" class="text-btn" type="button">清空</button>
       </div>
+
+      <!-- 这是一个空列表。里面的每一条记录都由 JS 动态创建并塞进来 -->
       <ul class="history__list" id="historyList"></ul>
+
+      <!-- 「还没有记录」的提示文字。JS 会在有记录时给它加上 hidden 属性，
+           hidden 是 HTML 内置属性，效果等于 CSS 的 display:none -->
       <p class="history__empty" id="historyEmpty">还没有记录，按 “=” 计算结果后会出现在这里。</p>
     </aside>
   </div>
 
+  <!-- 引入脚本。写在 </body> 前是为了保证上面的按钮都已经创建好了，
+       否则 JS 可能找不到按钮而报错 -->
   <script src="script.js"></script>
 </body>
+
 </html>
