@@ -142,6 +142,17 @@ const historyBtn = document.getElementById("historyBtn");         // 右上角�
 const clearHistoryBtn = document.getElementById("clearHistoryBtn"); // 清空历史按钮
 const themeBtn = document.getElementById("themeBtn");             // 主题切换按钮
 
+/* 哈希计算弹层相关的元素（完整功能说明见文件末尾的「哈希计算」一节） */
+const hashBtn = document.getElementById("hashBtn");               // 顶部的「#」按钮
+const hashModal = document.getElementById("hashModal");           // 整个弹层（用它判断开没开）
+const hashCloseBtn = document.getElementById("hashCloseBtn");     // 弹层右上角的关闭按钮
+const hashInput = document.getElementById("hashInput");           // 输入文本的多行文本框
+const hashAlgs = document.getElementById("hashAlgs");             // 算法按钮组的容器
+const hashAlgName = document.getElementById("hashAlgName");       // 结果区左上角显示的算法名
+const hashBits = document.getElementById("hashBits");             // 结果区右上角显示的位数
+const hashResult = document.getElementById("hashResult");         // 显示哈希结果的区域
+const hashCopyBtn = document.getElementById("hashCopyBtn");       // 「复制」按钮
+
 
 /* ============================================================
  * 3. 计算第一步：词法分析（tokenize）
@@ -812,6 +823,18 @@ document.addEventListener("keydown", (event) => {
      等价于 const key = event.key; 只是写法更短 */
   const { key } = event;
 
+  /* 【重要】哈希弹层打开时，键盘事件全部让给弹层，计算器这边直接退出。
+     为什么必须这么做？
+     因为弹层里有一个文本输入框，用户会在里面打「abc123」这样的内容。
+     如果不拦截，这些数字和符号会被计算器当成算式收进去，显示的数字就会乱跳。
+     注意：这里只是「不管」，并没有调用 preventDefault，
+     所以输入框照常能打字，弹层里的按钮照常能被回车键触发。 */
+  if (!hashModal.hidden) {
+    // 打开状态按 Esc 就关闭弹层（这是弹窗的通用习惯）
+    if (key === "Escape") closeHashModal();
+    return;
+  }
+
   // 焦点在功能按钮上时，交给按钮自身的默认行为
   /* 例如用户用 Tab 键跳到「历史记录」按钮上按回车，
      应该执行「打开面板」，而不是被我们拦截去当做等号 */
@@ -967,6 +990,403 @@ function loadHistory() {
     state.history = [];
   }
 }
+
+/* ============================================================
+ * 5. 哈希计算（MD5 / SHA-1 / SHA-256 / SHA-512）
+ * ============================================================
+ * 【哈希（Hash）是什么】
+ * 把任意长度的内容「压缩」成一串固定长度的字符，这串字符叫「摘要」或「指纹」。
+ *     输入：随便什么文本（一个字、一整本书都行）
+ *     输出：固定长度的十六进制字符串，例如 d41d8cd98f00b204e9800998ecf8427e
+ *
+ * 它有三大特点，也正是它有用的原因：
+ *   1. 单向   —— 只能从原文算出哈希，几乎无法从哈希反推出原文
+ *                （所以网站数据库里只存密码的哈希，不存密码本身）
+ *   2. 定长   —— MD5 永远 32 个字符，SHA-256 永远 64 个字符，和原文长度无关
+ *   3. 雪崩   —— 原文改一个字，结果会变得面目全非
+ *                （所以下载文件后可以对比哈希值，检查有没有被篡改）
+ *
+ * 【为什么两个来源、两套做法】
+ *   SHA-1 / SHA-256 / SHA-512 → 浏览器自带（Web Crypto API），直接调用，又快又稳
+ *   MD5                       → 浏览器不提供，我们自己用纯 JavaScript 写一个
+ * ============================================================ */
+
+/* 每个算法输出的位数。
+   位数 ÷ 4 = 十六进制字符个数，例如 128 ÷ 4 = 32 个字符。
+   这个表用来在结果区右上角显示「128 位」。 */
+const HASH_BITS = { MD5: 128, "SHA-1": 160, "SHA-256": 256, "SHA-512": 512 };
+
+/* 当前选中的算法，默认用 MD5（最短最直观，适合先用它理解概念） */
+let currentHashAlg = "MD5";
+
+/* 【防止「抢跑」的小机关】每次开始计算前，给这次任务发一个递增的编号。
+   因为 SHA 的计算是异步的（要等浏览器算完才能拿到结果），
+   如果用户手速很快，「前一次输入的结果」可能比「后一次输入的」更晚返回，
+   直接把迟到的旧结果写上去，屏幕上就会显示错误的内容。
+   有了编号，写结果之前先对一下号，对不上就丢掉不要。 */
+let hashTaskId = 0;
+
+
+/* ------------------------------------------------------------
+ * 5.1 自己实现的 MD5（RFC 1321 标准算法）
+ * ------------------------------------------------------------
+ * 算法分四步，代码也按这四步顺序写：
+ *   第 1 步 补位    把原文补齐到「64 字节的整数倍」
+ *   第 2 步 初始化  准备 4 个 32 位整数 A、B、C、D
+ *   第 3 步 主循环  每 64 字节一组，做 64 轮位运算，反复「搅拌」这 4 个数
+ *   第 4 步 输出    把 A B C D 拼成 32 个字符
+ *
+ * 【为什么会这么复杂？】
+ * 因为 MD5 是 1992 年设计的密码学算法，它靠大量「位运算」
+ * （与 &、或 |、异或 ^、左移 <<、取反 ~）把数据彻底搅乱，
+ * 保证改动一个比特，最终结果会有约一半的比特跟着翻转。
+ * 看不懂每一轮在干什么完全没关系——先理解「它在反复搅拌」就够了。 */
+
+/** 计算字符串的 MD5，返回 32 个小写十六进制字符 */
+function md5(text) {
+  /* TextEncoder 是浏览器内置的小工具，把字符串按 UTF-8 编码成字节数组。
+     为什么必须先转？因为哈希算法处理的是「字节」，不认识汉字和字母。
+     顺带这也解决了中文问题："你好" 会被正确编码成 6 个字节。 */
+  const bytes = new TextEncoder().encode(text);
+  const bitLength = bytes.length * 8;  // 按「位」计算的总长度，第 1 步末尾要用
+
+  // ===== 第 1 步：补位 =====
+  /* 规则：先在末尾补一个 0x80，再补若干个 0，
+     直到总长度 ≡ 56 (mod 64)，最后空出 8 个字节存放「原始长度」。
+     为什么要凑 64 的整数倍？因为主循环每次固定吃 64 字节。 */
+  const totalLength = (((bytes.length + 8) >> 6) + 1) << 6;
+  /* 上面这行在算什么？（>> 6 就是除以 64 取整，<< 6 就是乘以 64）
+     - 先加 8：因为末尾要留 8 个字节放长度
+     - 除以 64 取整再加 1：算出「至少要几个 64 字节的块」
+     - 再乘回 64：得到总字节数
+     验证一下：
+       输入 0 字节  → ((0+8)>>6 +1)*64 = 64 字节  ✅
+       输入 55 字节 → ((55+8)>>6 +1)*64 = 64 字节 ✅（刚好塞得下）
+       输入 56 字节 → ((56+8)>>6 +1)*64 = 128 字节 ✅（塞不下，得多开一块） */
+  const buffer = new Uint8Array(totalLength);
+  buffer.set(bytes);            // 先把原文原样放进去
+  buffer[bytes.length] = 0x80;  // 紧接着补一个 1（0x80 就是二进制的 10000000）
+  /* 中间那些位置不用管，Uint8Array 创建出来默认全是 0，正好是我们要的 */
+
+  /* DataView 能按指定「字节序」读写数字。
+     MD5 规定用小端序（little-endian），所以最后一个参数写 true。
+     最后 8 个字节存原始长度：低 32 位在前，高 32 位在后。
+     为什么要 & 高低位拆开？因为 32 位装不下更大的长度，
+     这是标准规定的字节布局。 */
+  const view = new DataView(buffer.buffer);
+  view.setUint32(totalLength - 8, bitLength >>> 0, true);                     // 低 32 位
+  view.setUint32(totalLength - 4, Math.floor(bitLength / 0x100000000), true); // 高 32 位
+
+  // ===== 第 2 步：初始化 4 个「寄存器」=====
+  /* 这 4 个数值是标准里写死的初始向量（就是 0x01234567 之类打乱后的样子），
+     照抄即可，没有别的含义 */
+  let a0 = 0x67452301;
+  let b0 = 0xefcdab89;
+  let c0 = 0x98badcfe;
+  let d0 = 0x10325476;
+
+  /* 【两张固定参数表】
+     SHIFT：每一轮要「循环左移」的位数。四组数值分别属于第 1/2/3/4 轮，
+            每轮 16 次，所以总共 4 × 16 = 64 个。
+     K    ：64 个常数。标准定义是 K[i] = floor(2^32 × |sin(i + 1)|)，
+            所以不用手抄 64 个数字，直接用这个公式现算就好。
+            （Math.sin 的输入单位是弧度，2 ** 32 表示 2 的 32 次方） */
+  const SHIFT = [
+    7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
+    5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20,
+    4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
+    6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21,
+  ];
+  const K = new Uint32Array(64);
+  for (let i = 0; i < 64; i += 1) {
+    K[i] = Math.floor(Math.abs(Math.sin(i + 1)) * 2 ** 32);
+  }
+
+  // ===== 第 3 步：主循环，一次处理 64 字节 =====
+  for (let offset = 0; offset < totalLength; offset += 64) {
+    /* 把这 64 个字节读成 16 个 32 位整数（小端）。
+       M 里的每个数会在下面 64 轮里被反复取用。 */
+    const M = new Uint32Array(16);
+    for (let i = 0; i < 16; i += 1) {
+      M[i] = view.getUint32(offset + i * 4, true);
+    }
+
+    // 把当前状态复制到 A B C D，这一组的计算在副本上进行，算完再累加回去
+    let A = a0;
+    let B = b0;
+    let C = c0;
+    let D = d0;
+
+    /* 64 轮搅拌。每一轮做两件事：
+         F：把 B、C、D 按某种方式混合起来（四轮各用一种混合方式，越混越乱）
+         g：决定这一轮取 M 里的第几个数
+       然后套用公式：A + F + K[i] + M[g]，循环左移 SHIFT[i] 位，再加回 B */
+    for (let i = 0; i < 64; i += 1) {
+      let F;
+      let g;
+      if (i < 16) {
+        F = (B & C) | (~B & D);  // 第 1 轮：按 B 的比特「二选一」
+        g = i;
+      } else if (i < 32) {
+        F = (D & B) | (~D & C);  // 第 2 轮：换一种选法
+        g = (5 * i + 1) % 16;
+      } else if (i < 48) {
+        F = B ^ C ^ D;           // 第 3 轮：三个数异或，纯粹地搅乱
+        g = (3 * i + 5) % 16;
+      } else {
+        F = C ^ (B | ~D);        // 第 4 轮
+        g = (7 * i) % 16;
+      }
+
+      /* 四个数相加后，要用 >>> 0 把结果压回 32 位（只保留低 32 位）。
+         为什么？因为 JS 的普通加法会产生超过 32 位的数，
+         而 MD5 规定每一步都必须在 32 位内绕圈。 */
+      F = (F + A + K[i] + M[g]) >>> 0;
+
+      // 四个寄存器整体往后挪一格
+      A = D;
+      D = C;
+      C = B;
+
+      /* 「循环左移」n 位怎么算？
+           F << n           把高位挤出去
+           F >>> (32 - n)   把挤出去的那部分补到低位
+           两者用 | 拼起来，就是循环左移的效果
+         最后再 >>> 0 压回 32 位 */
+      const n = SHIFT[i];
+      B = (B + ((F << n) | (F >>> (32 - n)))) >>> 0;
+    }
+
+    // 把这一组算出来的结果累加回全局状态（同样只保留低 32 位）
+    a0 = (a0 + A) >>> 0;
+    b0 = (b0 + B) >>> 0;
+    c0 = (c0 + C) >>> 0;
+    d0 = (d0 + D) >>> 0;
+  }
+
+  // ===== 第 4 步：把 4 个整数转成十六进制字符串 =====
+  /* 注意每个整数要按「小端」顺序输出：
+     先输出最低 8 位，再依次往高位走。
+     例如 0x67452301 输出的是 "01234567"（字节顺序反过来），这是标准要求。 */
+  return [a0, b0, c0, d0]
+    .map((num) => {
+      let hex = "";
+      for (let i = 0; i < 4; i += 1) {
+        /* num >>> (i * 8) 把想要的那 8 位挪到最低位，
+           & 0xff 只保留最低 8 位（0xff 是十六进制的 255） */
+        const byte = (num >>> (i * 8)) & 0xff;
+        /* toString(16) 把数字转成十六进制字符串；
+           padStart(2, "0") 保证不足两位时前面补 0（例如 5 → "05"） */
+        hex += byte.toString(16).padStart(2, "0");
+      }
+      return hex;
+    })
+    .join("");
+}
+
+
+/* ------------------------------------------------------------
+ * 5.2 SHA-1 / SHA-256 / SHA-512：调用浏览器自带的能力
+ * ------------------------------------------------------------
+ * 现代浏览器内置了 crypto.subtle（叫 Web Crypto API），
+ * 它提供的哈希运算由底层实现，速度远超用 JS 手写，我们直接用它。
+ *
+ * 【新语法：async / await】
+ * 有些操作天生需要时间（算哈希、下载文件、读取大文件），
+ * 这类函数返回的不是结果本身，而是一个「Promise（承诺）」。你可以把它理解成
+ * 「取餐号码牌」：先给你一张牌，等餐好了凭牌取。
+ *
+ *   函数前面写 async → 表示「这个函数会给出一张号码牌」
+ *   调用时前面写 await → 表示「我在这儿等着，直到拿到真正的结果再往下走」
+ *
+ * 如果不写 await，你拿到的就是那张号码牌本身，而不是哈希值。 */
+async function shaDigest(algorithm, text) {
+  // 同样要先把字符串转成字节（哈希只认字节）
+  const data = new TextEncoder().encode(text);
+
+  /* digest 的第一个参数是算法名（固定写法，如 "SHA-1"、"SHA-256"），
+     第二个参数是要计算的数据。它返回一个 Promise，所以要 await。 */
+  const digestBuffer = await crypto.subtle.digest(algorithm, data);
+
+  /* digestBuffer 是 ArrayBuffer（一块原始字节），不能直接当数组用，
+     所以先包一层 Uint8Array 来读，再用 Array.from 转成普通数组，
+     最后逐字节转成两位十六进制字符串。 */
+  return Array.from(new Uint8Array(digestBuffer))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/** 统一入口：根据当前算法决定走哪条路（MD5 自己算，SHA 交给浏览器） */
+async function computeHash(algorithm, text) {
+  if (algorithm === "MD5") return md5(text);   // 自己的实现，同步就能返回
+  return shaDigest(algorithm, text);           // 浏览器提供的，要等
+}
+
+
+/* ------------------------------------------------------------
+ * 5.3 界面：算完把结果写到屏幕上
+ * ------------------------------------------------------------ */
+
+/** 重新计算并显示哈希值。打开弹层、输入文字、切换算法时都会调用它 */
+async function updateHashResult() {
+  const text = hashInput.value;
+  const taskId = (hashTaskId += 1);  // 领一个号，标记「这是第几次计算」
+
+  // 更新结果区左上角（算法名）和右上角（位数）的说明文字
+  hashAlgName.textContent = currentHashAlg;
+  hashBits.textContent = HASH_BITS[currentHashAlg] + " 位";
+
+  /* 空输入时显示一个短横线占位。
+     为什么不显示结果？因为空字符串确实有哈希值（d41d8cd98f00b204e9800998ecf8427e），
+     但对使用者来说「什么都没输入却冒出一串乱码」会让人困惑，所以这里选择不显示。 */
+  if (text === "") {
+    hashResult.textContent = "—";
+    hashResult.className = "hash__value is-empty";
+    return;
+  }
+
+  hashResult.className = "hash__value";   // 去掉 is-empty，恢复正常的琥珀色样式
+  hashResult.textContent = "计算中…";
+
+  let value;
+  try {
+    value = await computeHash(currentHashAlg, text);
+  } catch (err) {
+    /* 会失败通常是两种情况：
+       ① crypto.subtle 不存在（用 http:// 打开、或浏览器太老时会出现）
+       ② 算法名写错 */
+    if (taskId !== hashTaskId) return;    // 已经有过更新的计算，这次结果作废
+    hashResult.className = "hash__value is-error";
+    hashResult.textContent = "当前环境不支持该算法，请改用 https / localhost 打开，或先试试 MD5。";
+    return;
+  }
+
+  /* 【关键】等待的这段时间里，用户可能已经改了输入。
+     如果编号变了，说明有更新的计算在跑，这次的旧结果直接丢掉，不能覆盖屏幕。 */
+  if (taskId !== hashTaskId) return;
+
+  hashResult.textContent = value;
+}
+
+
+/* ------------------------------------------------------------
+ * 5.4 打开 / 关闭弹层
+ * ------------------------------------------------------------ */
+
+/** 打开弹层 */
+function openHashModal() {
+  hashModal.hidden = false;             // 去掉 hidden 属性 → 弹层出现
+  hashBtn.classList.add("is-active");   // 顶部按钮高亮，提示「功能正在使用中」
+  hashBtn.setAttribute("aria-expanded", "true");
+  hashInput.focus();                    // 光标自动落进输入框，打开就能直接打字
+  updateHashResult();                   // 如果之前输过内容，恢复显示它对应的哈希
+}
+
+/** 关闭弹层 */
+function closeHashModal() {
+  hashModal.hidden = true;
+  hashBtn.classList.remove("is-active");
+  hashBtn.setAttribute("aria-expanded", "false");
+  /* 让输入框失去焦点。这样关闭后，键盘事件才会重新交给计算器，
+     而不是继续被输入框接收 */
+  hashInput.blur();
+}
+
+
+/* ------------------------------------------------------------
+ * 5.5 事件绑定
+ * ------------------------------------------------------------ */
+
+/* 点顶部的「#」按钮：开着就关，关着就开 */
+hashBtn.addEventListener("click", () => {
+  if (hashModal.hidden) openHashModal();
+  else closeHashModal();
+});
+
+/* 点弹层右上角的 ✕ */
+hashCloseBtn.addEventListener("click", closeHashModal);
+
+/* 点黑幕也能关闭（这是弹窗的通用交互习惯）。
+   这里不用事件委托给某个具体按钮，而是判断「被点到的元素是谁」：
+   只有点到黑幕本身时才关闭；点在面板内部的任何东西上，event.target
+   都会是面板里的元素，于是什么也不做。 */
+hashModal.addEventListener("click", (event) => {
+  if (event.target.classList.contains("modal__backdrop")) closeHashModal();
+});
+
+/* 输入框内容一变就重新算。
+   为什么用 input 事件而不是 keydown？
+   因为 keydown 只告诉你「按了哪个键」，而有些输入不来自按键
+   （比如右键粘贴、输入法选字、语音输入）。
+   input 事件在「内容真的变了」时才触发，是处理输入框最合适的事件。 */
+hashInput.addEventListener("input", updateHashResult);
+
+/* 切换算法。
+   这里用了「事件委托」：把监听器绑在按钮组的父元素上，
+   靠 event.target 反查到底点中了哪个按钮，
+   以后要在 HTML 里再加一个算法按钮，这段 JS 完全不用改。 */
+hashAlgs.addEventListener("click", (event) => {
+  const button = event.target.closest(".hash__alg");
+  if (!button) return;
+
+  currentHashAlg = button.dataset.alg;   // 读取 data-alg，例如 "SHA-256"
+
+  /* 把「选中」样式的类从旧按钮挪到新按钮上。
+     toggle(类名, 条件) 的第二个参数为 true 表示加上、false 表示移除，
+     所以这里一次遍历就完成了「选中的点亮、其余的熄灭」。 */
+  hashAlgs.querySelectorAll(".hash__alg").forEach((el) => {
+    el.classList.toggle("is-active", el === button);
+  });
+
+  updateHashResult();   // 换了算法立刻重算
+});
+
+/* 把结果复制到剪贴板 */
+hashCopyBtn.addEventListener("click", async () => {
+  const value = hashResult.textContent;
+  // 还没算完、或者处于占位/报错状态时，不复制
+  if (!value || value === "—" || value === "计算中…") return;
+
+  let success = false;
+  try {
+    /* navigator.clipboard 是现代浏览器提供的剪贴板接口。
+       它同样是异步的，要 await；
+       而且只在「安全环境」（https 或 localhost）下才可用。 */
+    await navigator.clipboard.writeText(value);
+    success = true;
+  } catch (err) {
+    success = false;
+  }
+
+  if (!success) {
+    /* 降级方案：老办法。
+       造一个看不见的文本框放进页面，把内容塞进去、全选，
+       再让浏览器执行「复制」这个命令。
+       这套写法已经被官方标记为「不推荐」，
+       但在不支持新接口的环境里，它是唯一还能用的办法。 */
+    const temp = document.createElement("textarea");
+    temp.value = value;
+    temp.style.position = "fixed";  // 固定定位，不占页面空间、不引起滚动
+    temp.style.opacity = "0";       // 完全透明，用户看不见它
+    document.body.appendChild(temp); // 必须先放进页面里才允许被选中
+    temp.select();                   // 选中里面的全部文字
+    try {
+      success = document.execCommand("copy");
+    } catch (err) {
+      success = false;
+    }
+    document.body.removeChild(temp); // 用完立刻删掉，别留在页面上
+  }
+
+  /* 给用户一个明确的反馈：按钮文字临时变一下。
+     没有反馈的话，用户不知道到底复制成功没有。 */
+  const original = hashCopyBtn.textContent;
+  hashCopyBtn.textContent = success ? "已复制" : "复制失败";
+  window.setTimeout(() => {
+    hashCopyBtn.textContent = original;
+  }, 1200);
+});
+
 
 /* ---------------- 初始化：程序启动时跑一次 ---------------- */
 

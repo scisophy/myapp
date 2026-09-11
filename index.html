@@ -84,6 +84,16 @@
             </svg>
           </button>
 
+          <!-- 哈希计算按钮：点开一个弹层，把文本变成一串「指纹」 -->
+          <button id="hashBtn" class="icon-btn" type="button" title="哈希计算" aria-label="哈希计算" aria-expanded="false">
+            <!-- 图标画的是一个「#」井号：两条斜竖线 + 两条横线。
+                 哈希的英文 hash 本身也有「#」这个符号的意思，
+                 所以用井号当图标最直观 -->
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9.5 4 7.5 20M16.5 4l-2 16M4 9.5h16M3.5 14.5h16" />
+            </svg>
+          </button>
+
           <button id="themeBtn" class="icon-btn" type="button" title="切换主题" aria-label="切换主题">
             <!-- 这里放了两张图：月亮和太阳。
                  它们不是用 JS 切换的，而是纯 CSS 控制显示/隐藏：
@@ -199,6 +209,80 @@
            hidden 是 HTML 内置属性，效果等于 CSS 的 display:none -->
       <p class="history__empty" id="historyEmpty">还没有记录，按 “=” 计算结果后会出现在这里。</p>
     </aside>
+  </div>
+
+  <!-- ============================================================
+       哈希计算弹层（模态框）
+       ============================================================
+       它放在 .app 的外面，是因为要「浮在整页之上」，
+       而不是挤在计算器和历史记录中间。
+
+       三层结构：
+         .modal            铺满屏幕的容器（负责定位和居中）
+           .modal__backdrop  半透明黑幕（点一下可以关闭）
+           .modal__panel     真正的面板
+
+       hidden 属性：HTML 内置属性，等于 CSS 的 display:none。
+       JS 通过 hashModal.hidden = true / false 来控制显示与隐藏。
+
+       【无障碍小知识】
+         role="dialog"     告诉读屏软件「这是一块对话面板」
+         aria-modal="true" 告诉读屏软件「打开时，焦点应该被限制在面板里」
+         aria-labelledby   指定用哪个元素的文字作为这块面板的标题 -->
+  <div class="modal" id="hashModal" hidden>
+    <!-- 黑幕。它没有 id，JS 是通过点击位置（event.target）来判断要不要关闭的 -->
+    <div class="modal__backdrop"></div>
+
+    <section class="modal__panel"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="hashTitle">
+
+      <div class="hash__head">
+        <h2 id="hashTitle">哈希计算</h2>
+        <!-- 关闭按钮。里面直接写一个 ✕ 字符，不用 SVG 更简单 -->
+        <button id="hashCloseBtn" class="icon-btn hash__close" type="button" aria-label="关闭">✕</button>
+      </div>
+
+      <!-- 输入区域。
+           <textarea> 是多行文本框（输入框用 <input>，但那个只能输入一行，不适合长文本）。
+           spellcheck="false" 关掉拼写检查，否则输入英文时会满是红色波浪线。
+           这里没有 <label> 标签，用 placeholder 和 aria-label 来描述它的用途。 -->
+      <textarea id="hashInput"
+                class="hash__input"
+                rows="3"
+                spellcheck="false"
+                aria-label="要计算哈希的文本"
+                placeholder="在这里输入任意文本（中文、英文、数字都行），下面会实时算出它的哈希值…"></textarea>
+
+      <!-- 算法切换按钮组。
+           每个按钮用 data-alg 记录自己的算法名，JS 读 button.dataset.alg 就能知道点的是谁。
+           这和计算器按键用 data-value 是同一套思路。 -->
+      <div class="hash__algs" id="hashAlgs" role="group" aria-label="选择哈希算法">
+        <!-- 默认选中 MD5，所以它多一个 is-active 类 -->
+        <button class="hash__alg is-active" type="button" data-alg="MD5">MD5</button>
+        <button class="hash__alg" type="button" data-alg="SHA-1">SHA-1</button>
+        <button class="hash__alg" type="button" data-alg="SHA-256">SHA-256</button>
+        <button class="hash__alg" type="button" data-alg="SHA-512">SHA-512</button>
+      </div>
+
+      <!-- 结果显示区 -->
+      <div class="hash__out">
+        <div class="hash__label">
+          <span><span id="hashAlgName">MD5</span> 结果</span>
+          <span id="hashBits">128 位</span>
+        </div>
+
+        <!-- <output> 是语义标签，专门用来显示「计算产生的结果」。
+             JS 会把哈希值写进它的 textContent。
+             is-empty 类表示「还没输入内容」的灰色占位状态。 -->
+        <output id="hashResult" class="hash__value is-empty">—</output>
+
+        <div class="hash__actions">
+          <button id="hashCopyBtn" class="text-btn" type="button">复制</button>
+        </div>
+      </div>
+    </section>
   </div>
 
   <!-- 引入脚本。写在 </body> 前是为了保证上面的按钮都已经创建好了，
