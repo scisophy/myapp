@@ -1065,7 +1065,8 @@ html[data-theme="dark"] .hash__input {
   text-shadow: 0 0 10px var(--lcd-glow);
   word-break: break-all;  /* 强制在任意位置换行：哈希是一长串没有空格的字符，
                              不写这行会直接冲出面板外面 */
-  user-select: all;       /* 双击时整段选中，方便自己手动复制 */
+  -webkit-user-select: all; /* Safari 需要带前缀的写法，和前面 .key 里同理 */
+  user-select: all;         /* 双击时整段选中，方便自己手动复制 */
 }
 
 /* 没有输入内容时的占位状态（显示一个短横线） */
