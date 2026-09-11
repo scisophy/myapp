@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>计算器 · Calculator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <main class="calc">
+      <header class="calc__head">
+        <div class="brand">
+          <span class="brand__dot"></span>
+          <h1>计算器</h1>
+        </div>
+        <div class="head-actions">
+          <button id="historyBtn" class="icon-btn" type="button" title="历史记录" aria-label="历史记录" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 7v5l3.5 2" />
+              <circle cx="12" cy="12" r="9" />
+            </svg>
+          </button>
+          <button id="themeBtn" class="icon-btn" type="button" title="切换主题" aria-label="切换主题">
+            <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" />
+            </svg>
+            <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="4.2" />
+              <path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <section class="display">
+        <div class="display__expr" id="expr" aria-hidden="true"></div>
+        <div class="display__result" id="result" aria-live="polite">0</div>
+      </section>
+
+      <div class="keys" id="keys">
+        <button class="key key--fn" type="button" data-value="sin(">sin</button>
+        <button class="key key--fn" type="button" data-value="cos(">cos</button>
+        <button class="key key--fn" type="button" data-value="tan(">tan</button>
+        <button class="key key--fn" type="button" data-value="ln(">ln</button>
+        <button class="key key--fn" type="button" data-value="log(">log</button>
+
+        <button class="key key--danger" type="button" data-action="clear">AC</button>
+        <button class="key key--soft" type="button" data-action="back" aria-label="退格">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 5h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9L3 12l6-7Z" />
+            <path d="M13 9.5l5 5M18 9.5l-5 5" />
+          </svg>
+        </button>
+        <button class="key key--soft" type="button" data-value="(">(</button>
+        <button class="key key--soft" type="button" data-value=")">)</button>
+        <button class="key key--op" type="button" data-value="÷">÷</button>
+
+        <button class="key key--num" type="button" data-value="7">7</button>
+        <button class="key key--num" type="button" data-value="8">8</button>
+        <button class="key key--num" type="button" data-value="9">9</button>
+        <button class="key key--op" type="button" data-value="%">%</button>
+        <button class="key key--op" type="button" data-value="×">×</button>
+
+        <button class="key key--num" type="button" data-value="4">4</button>
+        <button class="key key--num" type="button" data-value="5">5</button>
+        <button class="key key--num" type="button" data-value="6">6</button>
+        <button class="key key--soft" type="button" data-action="negate" aria-label="正负号">±</button>
+        <button class="key key--op" type="button" data-value="−">−</button>
+
+        <button class="key key--num" type="button" data-value="1">1</button>
+        <button class="key key--num" type="button" data-value="2">2</button>
+        <button class="key key--num" type="button" data-value="3">3</button>
+        <button class="key key--soft" type="button" data-value="√(" aria-label="开平方根">√</button>
+        <button class="key key--op" type="button" data-value="+">+</button>
+
+        <button class="key key--num" type="button" data-value="0">0</button>
+        <button class="key key--num" type="button" data-value=".">.</button>
+        <button class="key key--soft" type="button" data-value="π">π</button>
+        <button class="key key--soft" type="button" data-value="²" aria-label="平方">x²</button>
+        <button class="key key--equals" type="button" data-action="equals">=</button>
+      </div>
+    </main>
+
+    <aside class="history" id="historyPanel">
+      <div class="history__head">
+        <h2>历史记录</h2>
+        <button id="clearHistoryBtn" class="text-btn" type="button">清空</button>
+      </div>
+      <ul class="history__list" id="historyList"></ul>
+      <p class="history__empty" id="historyEmpty">还没有记录，按 “=” 计算结果后会出现在这里。</p>
+    </aside>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
