@@ -1,0 +1,12 @@
+{
+  "name": "myapp",
+  "private": true,
+  "version": "1.0.0",
+  "description": "古典风计算器 + 哈希计算 + 口算训练擂台（Vite 版）",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  }
+}

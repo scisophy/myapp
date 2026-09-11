@@ -1,0 +1,598 @@
+/* ============================================================
+ * 计算器样式：主体卡片、显示屏、按键区、历史面板
+ * ============================================================ */
+
+/* ============================================================
+ * 1. 整体布局：计算器 + 历史面板并排
+ * ============================================================ */
+.app {
+  display: flex;         /* 让两个子元素（.calc 和 .history）横向排列 */
+  align-items: flex-start; /* 顶部对齐（不用 center，否则历史面板短的时候会被拉歪） */
+  justify-content: center;
+  gap: 20px;             /* gap 是 flex 专用：设置子元素之间的间距，比 margin 好用 */
+  width: 100%;           /* 宽度撑满父容器 */
+  max-width: 780px;      /* 但最多 780px，太宽了不好看 */
+}
+
+/* -------------------- 计算器主体卡片 -------------------- */
+.calc {
+  position: relative;    /* 关键！设为 relative 后，它内部的绝对定位元素
+                            就以它为基准（下面 ::before 要用到） */
+  width: 100%;
+  max-width: 438px;
+  padding: 20px 20px 22px; /* 上 20px、左右 20px、下 22px（下边稍多，视觉更稳） */
+  border-radius: 26px;
+  background: linear-gradient(170deg, var(--card-1), var(--card-2));
+  border: 1px solid var(--line-strong);
+  /* box-shadow 可以写多组，用逗号分隔，形成层层叠加的阴影。
+     inset 关键字表示「内阴影」，不加就是外阴影 */
+  box-shadow: var(--card-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: background 0.4s ease, border-color 0.4s ease;
+}
+
+/* 证书式内框：用伪元素画一圈细线，营造「装裱」的古典感。
+   inset: 7px 表示距离卡片四边各内缩 7px，
+   配合 .calc 的 position:relative，它就贴在卡片内侧。 */
+.calc::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid var(--line);
+  border-radius: 20px;   /* 圆角比外框略小，视觉上才平行 */
+  pointer-events: none;  /* 不挡鼠标点击 */
+  opacity: 0.8;
+}
+
+/* 暗色主题下，把卡片的「顶部高光」换成很淡的暖金色 */
+html[data-theme="dark"] .calc {
+  box-shadow: var(--card-shadow), inset 0 1px 0 rgba(255, 214, 148, 0.12);
+}
+
+/* -------------------- 卡片顶部（标题 + 图标按钮）-------------------- */
+.calc__head {
+  position: relative;    /* 保证显示在 .calc::before 内框之上 */
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* 左右两端对齐，中间自动留空 */
+  padding: 4px 8px 10px; /* 上 4px、左右 8px、下 10px */
+}
+
+.brand {
+  display: flex;
+  align-items: center;   /* 图标和文字垂直居中对齐 */
+  gap: 11px;
+}
+
+.brand__mark {
+  font-size: 1.05rem;    /* 1rem = 根元素字号，默认 16px，所以约 16.8px */
+  line-height: 1;        /* 行高等于字号，让符号不产生多余的上下空隙 */
+  color: var(--brass);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5); /* 文字阴影，做出「刻印」感 */
+}
+
+.brand__name h1 {
+  margin: 0;             /* 标题自带外边距，去掉才对齐 */
+  font-size: 1.02rem;
+  font-weight: 700;      /* 字重：400 正常、700 粗体 */
+  letter-spacing: 0.16em; /* 字距：让汉字之间有呼吸感 */
+  color: var(--ink);
+}
+
+.brand__name em {
+  display: block;        /* em 默认是行内元素，改成块级才能换行显示 */
+  margin-top: 2px;
+  font-size: 0.58rem;    /* 很小的字，约 9px */
+  font-style: normal;    /* em 默认斜体，这里改成正常 */
+  letter-spacing: 0.34em; /* 小字配大字距 = 高级感 */
+  text-transform: uppercase; /* 自动把英文变大写 */
+  color: var(--ink-soft);
+}
+
+.head-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* -------------------- 小图标按钮（历史 / 哈希 / 游戏 / 主题）-------------------- */
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;   /* grid 布局的居中「一行写法」：
+                            place-items 是 align-items + justify-items 的简写 */
+  padding: 0;
+  color: var(--ink-soft);
+  background: linear-gradient(180deg, var(--key-face-1), var(--key-face-2));
+  border: 1px solid var(--key-edge);
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 var(--key-gloss), 0 2px 0 var(--key-edge);
+  cursor: pointer;       /* 鼠标移上去变成小手，提示「这个可以点」 */
+  /* transition 让属性变化有过渡动画。
+     写法：属性名 时长 缓动曲线。
+     这里让背景/文字色慢慢变（0.2s），而按下位移要快（0.08s）才跟手 */
+  transition: background 0.2s ease, color 0.2s ease, transform 0.08s ease,
+    box-shadow 0.08s ease;
+}
+
+/* :hover 表示鼠标悬停时的状态 */
+.icon-btn:hover {
+  color: var(--brass);
+  background: linear-gradient(180deg, #fffdf6, var(--key-face-2));
+}
+
+/* :active 表示鼠标按住不放（或手指按下）时的状态。
+   往下位移 2px + 阴影变内凹，就做出了「被按下去」的手感 */
+.icon-btn:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 1px 3px var(--key-drop);
+}
+
+/* .is-active 是我们自己起的类名（JS 会在面板打开时加上它），
+   表示「按钮处于激活状态」 */
+.icon-btn.is-active {
+  color: var(--op-text);
+  border-color: var(--brass);
+}
+
+/* SVG 图标统一设置。
+   SVG 是矢量图，用 stroke（描边）而不是填色，所以要设 fill:none */
+.icon-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: none;            /* 不填充 */
+  stroke: currentColor;  /* 描边颜色 = 当前文字颜色（这样换主题/悬停会自动变色） */
+  stroke-width: 1.6;     /* 线条粗细 */
+  stroke-linecap: round; /* 线段两端是圆头，线条更柔和 */
+  stroke-linejoin: round;/* 拐角也是圆的 */
+}
+
+/* 主题图标切换：亮色主题显示「太阳」，暗色显示「月亮」。
+   默认两个都藏起来，再由下一条规则按主题打开其中一个 */
+.icon-sun { display: none; }
+html[data-theme="light"] .icon-sun { display: block; }
+html[data-theme="light"] .icon-moon { display: none; }
+
+
+/* ============================================================
+ * 2. 花饰分隔线
+ * ============================================================ */
+.ornament {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 4px 14px;  /* 上 2px、左右 4px、下 14px */
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  color: var(--brass);
+}
+
+/* 左右两条线用 flex:1 自动平分剩余空间，
+   两端的渐变让线条「由虚到实再到虚」，比纯色更精致 */
+.ornament span {
+  flex: 1;               /* flex-grow:1，抢占所有剩余宽度 */
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
+}
+
+
+/* ============================================================
+ * 3. 显示屏（黄铜镶边的墨绿 LCD）
+ * ============================================================ */
+.display {
+  position: relative;    /* 给下面的 ::after 反光层做定位基准 */
+  padding: 16px 18px 18px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--lcd-1), var(--lcd-2));
+  border: 2px solid var(--line-strong);
+  /* 四层阴影叠加，从内到外：深色内凹 → 黄铜内圈 → 顶部白边 → 外投影 */
+  box-shadow:
+    inset 0 2px 12px rgba(0, 0, 0, 0.6),
+    inset 0 0 0 1px var(--lcd-line),
+    0 1px 0 rgba(255, 255, 255, 0.55),
+    0 10px 22px -14px rgba(60, 44, 20, 0.7);
+  text-align: right;     /* 数字靠右对齐，符合计算器习惯 */
+  overflow: hidden;      /* 超出圆角范围的内容裁掉 */
+}
+
+/* 玻璃反光：一层从上往下的白色渐变。
+   rgba 的第四个数字是透明度（0 全透明 ~ 1 不透明） */
+.display::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 46%);
+}
+
+/* 第一行小字：算式原文 */
+.display__expr {
+  min-height: 1.5em;     /* 即使内容是空的也占一行的高度，避免布局跳动 */
+  font-size: 0.94rem;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  color: var(--lcd-dim);
+  white-space: nowrap;   /* 不换行，长了就横向滚动 */
+  overflow-x: auto;
+  scrollbar-width: none; /* 隐藏滚动条（Firefox 写法） */
+}
+
+/* 隐藏 WebKit 内核浏览器（Chrome/Edge/Safari）的滚动条，
+   和上面一行配合，做成「能滚动但看不见滚动条」 */
+.display__expr::-webkit-scrollbar,
+.display__result::-webkit-scrollbar {
+  display: none;
+}
+
+/* :empty 选中「没有子元素」的元素。
+   当算式为空时，用伪元素显示一句灰色的提示文字 */
+.display__expr:empty::before {
+  content: "输入算式…";
+  opacity: 0.7;
+}
+
+/* 第二行大字：实时结果 */
+.display__result {
+  margin-top: 6px;
+  /* clamp(最小值, 理想值, 最大值)：让字号随屏幕宽度自动缩放，
+     小屏取 2rem，大屏最多 2.75rem。8.6vw 表示视口宽度的 8.6% */
+  font-size: clamp(2rem, 8.6vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.16;
+  /* tabular-nums 让每个数字等宽（0 和 1 一样宽），
+     数字变化时位置就不会左右抖动 */
+  font-variant-numeric: tabular-nums;
+  color: var(--lcd-text);
+  text-shadow: 0 0 14px var(--lcd-glow); /* 发光效果 */
+  white-space: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  transition: font-size 0.15s ease;
+}
+
+/* 结果很长时，JS 会给它加上 is-small 类，字号自动缩小 */
+.display__result.is-small {
+  font-size: 1.6rem;
+}
+
+/* 出错时（比如除以 0）加上 is-error 类，变成橙红色提示 */
+.display__result.is-error {
+  font-size: 1.55rem;
+  color: #e39a72;
+  text-shadow: none;
+}
+
+
+/* ============================================================
+ * 4. 按键区
+ * ============================================================ */
+.keys {
+  /* grid 布局：把子元素排成网格。
+     repeat(5, minmax(0, 1fr)) 表示「重复 5 列，每列最小 0、最大平分剩余空间」。
+     minmax(0,1fr) 比直接写 1fr 更安全，能防止长内容把格子撑变形 */
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;             /* 格子间距 */
+}
+
+.key {
+  /* aspect-ratio 直接规定「宽高比」，这里宽 1 : 高 0.8。
+     好处是：不用算具体像素，屏幕变宽时按键会自动按比例变高 */
+  aspect-ratio: 1 / 0.8;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-family: var(--font-serif); /* 表单元素不会自动继承父级字体，必须显式写 */
+  font-size: 1.08rem;
+  font-weight: 600;
+  color: var(--key-text);
+  background: linear-gradient(180deg, var(--key-face-1), var(--key-face-2));
+  border: 1px solid var(--key-edge);
+  border-radius: 9px;
+  /* 三层阴影 = 键帽的立体感（高光 + 厚度边 + 投影），详见 base.css 变量处的说明 */
+  box-shadow:
+    inset 0 1px 0 var(--key-gloss),
+    0 2px 0 var(--key-edge),
+    0 5px 10px -4px var(--key-drop);
+  cursor: pointer;
+  -webkit-user-select: none; /* Safari 需要加 -webkit- 前缀才生效 */
+  user-select: none;         /* 禁止选中文字，避免快速连点拖出蓝色选区 */
+  -webkit-tap-highlight-color: transparent; /* 手机上点按不闪灰色方块 */
+  transition: background 0.18s ease, transform 0.08s ease,
+    box-shadow 0.08s ease, color 0.18s ease;
+}
+
+.key:hover {
+  background: linear-gradient(180deg, #fffdf6, var(--key-face-2));
+  color: var(--brass);
+}
+
+/* 按下时「沉下去」。
+   注意这里同时写了 .is-flash：键盘输入时 JS 会给对应按键加这个类，
+   用同一套样式模拟出「被按下」的样子 */
+.key:active,
+.key.is-flash {
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 4px var(--key-drop);
+}
+
+/* 暗色主题下悬停颜色单独调，否则白色太扎眼 */
+html[data-theme="dark"] .key:hover {
+  background: linear-gradient(180deg, #4b3f2c, var(--key-face-2));
+}
+
+/* 退格键里那个 SVG 图标 */
+.key svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- 按键的几种变体（对应 HTML 里的 key--xxx）---------- */
+
+/* 数字键：更大更粗 */
+.key--num {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+/* 函数键（sin/cos/ln…）：小而斜的刻印感，弱化存在感 */
+.key--fn {
+  font-size: 0.82rem;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+/* 括号、±、√、π 等「辅助键」用铜棕色 */
+.key--soft {
+  color: var(--op-text);
+}
+
+/* 运算符键：换一套暖棕底色 */
+.key--op {
+  background: linear-gradient(180deg, var(--op-face-1), var(--op-face-2));
+  color: var(--op-text);
+  font-size: 1.16rem;
+}
+
+/* AC 键：朱红色文字，暗示「危险操作」 */
+.key--danger {
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  color: var(--red);
+}
+
+/* 等号键：深枣红渐变 + 铜色描边，是整块面板的视觉焦点 */
+.key--equals {
+  font-size: 1.28rem;
+  color: #f8ecd2;
+  background: linear-gradient(180deg, #a8503c, #7d3325);
+  border-color: #63281c;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 226, 190, 0.35),
+    0 2px 0 #63281c,
+    0 6px 14px -5px rgba(110, 42, 26, 0.6);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); /* 文字带一点下沉的阴影，更像压印 */
+}
+
+.key--equals:hover {
+  background: linear-gradient(180deg, #b85a44, #8c3a2a);
+  color: #fff6e2;
+}
+
+html[data-theme="dark"] .key--equals {
+  background: linear-gradient(180deg, #9c4a37, #6d2d21);
+  border-color: #4b1d14;
+  color: #f6e3c4;
+}
+
+
+/* ============================================================
+ * 5. 历史记录面板（账簿样式）
+ * ============================================================ */
+.history {
+  /* 默认不显示。JS 给它加上 is-open 类后才变成 flex（见下面两条规则） */
+  display: none;
+  flex-direction: column;  /* 内部改回纵向排列：标题在上、列表在下 */
+  width: 292px;
+  max-height: 566px;       /* 超过就由内部列表滚动，面板本身不变形 */
+  padding: 18px 15px;
+  border-radius: 22px;
+  /* 两层背景叠加：
+     第一层是重复的横线（间距 34px），做出「账簿横格」的效果；
+     第二层是纸张渐变底色。CSS 里先写的在上层 */
+  background:
+    repeating-linear-gradient(180deg, transparent 0 33px, var(--line) 33px 34px),
+    linear-gradient(180deg, var(--paper-1), var(--paper-2));
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--card-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+html[data-theme="dark"] .history {
+  background:
+    repeating-linear-gradient(180deg, transparent 0 33px, var(--line) 33px 34px),
+    linear-gradient(180deg, var(--paper-1), var(--paper-2));
+  box-shadow: var(--card-shadow), inset 0 1px 0 rgba(255, 214, 148, 0.1);
+}
+
+/* 打开状态：display 从 none 变成 flex，元素就出现了。
+   同时播放一个「从右侧滑入 + 淡入」的动画 */
+.history.is-open {
+  display: flex;
+  animation: ledger-in 0.3s ease;
+}
+
+/* @keyframes 定义动画的关键帧：
+   from 是起点（透明 + 右移 16px），to 是终点（不透明 + 原位） */
+@keyframes ledger-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: none; } /* transform:none 即回到默认位置 */
+}
+
+.history__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 12px;
+  border-bottom: 1px solid var(--line-strong); /* 标题下一条分隔线 */
+  margin-bottom: 12px;
+}
+
+.history__head h2 {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.22em; /* 大字距的标题，像刻本上的题字 */
+  color: var(--ink);
+}
+
+/* 通用文字按钮（清空、复制、跳过等） */
+.text-btn {
+  padding: 4px 10px;
+  font-family: var(--font-serif);
+  font-size: 0.76rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+  background: linear-gradient(180deg, var(--key-face-1), var(--key-face-2));
+  border: 1px solid var(--key-edge);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 var(--key-gloss), 0 1px 0 var(--key-edge);
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.08s ease;
+}
+
+.text-btn:hover {
+  color: var(--red); /* 悬停变朱红，提示这是删除类操作 */
+}
+
+.text-btn:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 3px var(--key-drop);
+}
+
+/* 记录列表：可滚动区域 */
+.history__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0 3px 0 0;    /* 右边留一点空隙给滚动条 */
+  list-style: none;      /* ul 默认有小圆点，去掉 */
+  overflow-y: auto;      /* 内容超出 max-height 时纵向滚动 */
+}
+
+/* 单条记录。注意：这个元素是 JS 用 document.createElement 动态创建的 */
+.history__item {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  text-align: right;
+  font-family: var(--font-serif);
+  color: var(--ink);
+  /* rgba 第四个值 0.62 让纸张横格线能隐约透出来，像写在账簿上 */
+  background: rgba(255, 253, 245, 0.62);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.1s ease, border-color 0.18s ease;
+}
+
+html[data-theme="dark"] .history__item {
+  background: rgba(255, 235, 200, 0.05);
+  box-shadow: none;
+}
+
+.history__item:hover {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--brass); /* 悬停时描边变黄铜色 */
+}
+
+html[data-theme="dark"] .history__item:hover {
+  background: rgba(255, 226, 170, 0.12);
+}
+
+.history__item:active {
+  transform: scale(0.985); /* 缩小一点点，作为点击反馈 */
+}
+
+/* 记录里的算式（小字斜体） */
+.history__item small {
+  display: block;
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--ink-soft);
+  /* 超长时用省略号截断：不换行 + 溢出隐藏 + 显示 ... */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 记录里的结果（大字加粗） */
+.history__item strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 1.02rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 「暂无记录」的提示文字：margin:auto 让它在 flex 容器里居中 */
+.history__empty {
+  margin: auto;
+  padding: 26px 14px;
+  font-size: 0.8rem;
+  font-style: italic;
+  line-height: 1.8;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+/* 有记录时 JS 会给它加 hidden 属性，这里让 hidden 强制不显示
+   （因为上面写了 display，需要显式控制优先级） */
+.history__empty[hidden] {
+  display: none;
+}
+
+
+/* ============================================================
+ * 6. 响应式：屏幕宽度 ≤ 840px 时改用这套规则
+ * ------------------------------------------------------------
+ * @media 叫「媒体查询」，可以根据屏幕尺寸、方向等条件套用不同样式。
+ * 这段的作用：窄屏下把「左右并排」改成「上下堆叠」，
+ * 否则计算器和历史面板挤在一起就没法看了。
+ * ============================================================ */
+@media (max-width: 840px) {
+  body {
+    /* 窄屏改成从顶部开始排列，因为内容可能会比屏幕高，
+       center 对齐会导致顶部内容被「挤」到视口外面看不到 */
+    align-items: flex-start;
+    padding: 16px 12px 30px;
+  }
+
+  .app {
+    flex-direction: column; /* 主轴改成纵向 = 两个块上下排列 */
+    align-items: center;    /* 横向居中 */
+  }
+
+  /* 两个块都限制最大宽度，避免在大号手机上被拉得过宽 */
+  .calc,
+  .history {
+    max-width: 438px;
+  }
+
+  .history {
+    width: 100%;
+    max-height: 320px;      /* 竖屏时不需要那么高，省点空间 */
+  }
+}

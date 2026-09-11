@@ -1,0 +1,391 @@
+/* ============================================================
+ * 口算擂台样式
+ * ============================================================
+ * 风格上尽量复用计算器那套「羊皮纸 + 黄铜 + 墨绿 LCD」，
+ * 让新功能看起来和原项目是一体的，而不是硬贴上去的。
+ * ============================================================ */
+
+/* 游戏面板比哈希面板宽一些，题目大字需要更多横向空间 */
+.panel--game {
+  width: min(560px, 100%);
+}
+
+/* 标题栏：和哈希面板的标题栏同款（左标题、右关闭按钮） */
+.game__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.game__head h2 {
+  margin: 0;
+  font-size: 0.94rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--ink);
+}
+
+/* ============================================================
+ * 1. 选关卡界面
+ * ============================================================ */
+.game__tip {
+  margin: 0 0 12px;
+  font-size: 0.78rem;
+  line-height: 1.8;
+  color: var(--ink-soft);
+}
+
+.game__levels {
+  display: grid;
+  gap: 8px;      /* 卡片之间的间距，比 margin 更省事 */
+}
+
+/* 单个关卡卡片。它是一个 <button>，所以要注意：
+   表单元素不会继承字体，必须显式写 font-family */
+.level {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 11px 14px;
+  text-align: left;
+  font-family: var(--font-serif);
+  color: var(--ink);
+  background: rgba(255, 253, 245, 0.62);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.08s ease;
+}
+
+.level:hover {
+  border-color: var(--brass);        /* 悬停变黄铜色描边 */
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.level:active {
+  transform: scale(0.99);            /* 轻微缩放，当作点击反馈 */
+}
+
+html[data-theme="dark"] .level {
+  background: rgba(255, 235, 200, 0.05);
+}
+
+html[data-theme="dark"] .level:hover {
+  background: rgba(255, 226, 170, 0.12);
+}
+
+/* 难度星级：用 ★ 重复拼出来，字距拉开一点更好看 */
+.level__stars {
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  color: var(--brass);
+}
+
+.level__name {
+  font-size: 0.94rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.level__desc {
+  font-size: 0.73rem;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.level__meta {
+  margin-top: 2px;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;  /* 数字等宽，切换时不会左右抖 */
+}
+
+/* ============================================================
+ * 2. 答题界面：顶部四项统计
+ * ============================================================ */
+.game__stats {
+  display: grid;
+  /* repeat(4, ...) 排成 4 等列 */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.stat {
+  padding: 7px 4px;
+  text-align: center;
+  background: rgba(255, 253, 245, 0.6);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+html[data-theme="dark"] .stat {
+  background: rgba(255, 235, 200, 0.05);
+}
+
+.stat__label {
+  display: block;
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
+  color: var(--ink-soft);
+}
+
+.stat strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 剩余时间 ≤ 10 秒时，JS 会给它加 is-urgent，变红提醒 */
+.stat strong.is-urgent {
+  color: var(--red);
+  animation: urgent-pulse 1s ease-in-out infinite;
+}
+
+@keyframes urgent-pulse {
+  50% { opacity: 0.45; }
+}
+
+/* 连击 ≥ 3 时高亮成黄铜色 */
+.stat strong.is-hot {
+  color: var(--brass);
+  text-shadow: 0 0 10px var(--brass-soft);
+}
+
+/* ============================================================
+ * 3. 题目区（LCD 显示屏风格）
+ * ============================================================ */
+.game__stage {
+  margin: 14px 0 12px;
+  padding: 18px 16px 16px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--lcd-1), var(--lcd-2));
+  border: 2px solid var(--line-strong);
+  box-shadow:
+    inset 0 2px 12px rgba(0, 0, 0, 0.6),
+    inset 0 0 0 1px var(--lcd-line),
+    0 1px 0 rgba(255, 255, 255, 0.55);
+  text-align: center;
+}
+
+/* 题目大字，例如 "13 − 5 = ?"。
+   clamp 让字号随屏幕宽度自适应，手机上也不会溢出 */
+.game__question {
+  font-size: clamp(1.75rem, 8.5vw, 2.35rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  color: var(--lcd-text);
+  text-shadow: 0 0 16px var(--lcd-glow);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 答案输入框。样式做成 LCD 上的一块凹槽 */
+.game__answer {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 9px 12px;
+  text-align: center;
+  font-family: var(--font-serif);
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--lcd-text);
+  background: rgba(0, 0, 0, 0.38);
+  border: 1px solid var(--lcd-line);
+  border-radius: 10px;
+}
+
+.game__answer:focus {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+}
+
+.game__answer::placeholder {
+  font-size: 0.95rem;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: var(--lcd-dim);
+}
+
+/* 一句反馈文字：答对/答错/跳过的提示。
+   min-height 保证没有提示时也占一行，界面不会上下跳动 */
+.game__feedback {
+  min-height: 1.4em;
+  margin: 10px 0 0;
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  line-height: 1.5;
+  color: var(--lcd-dim);
+}
+
+.game__feedback.is-ok {
+  color: #9fd08a;    /* 苔绿：正向 */
+}
+
+.game__feedback.is-bad {
+  color: #e8a07e;    /* 暖橙：负向 */
+}
+
+/* ============================================================
+ * 4. 虚拟数字键盘
+ * ============================================================ */
+.game__pad {
+  display: grid;
+  /* 3 列 × 4 行：7-9 / 4-6 / 1-3 / ⌫ 0 确定，和手机计算器一致 */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pad__key {
+  padding: 11px 0;
+  font-family: var(--font-serif);
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--key-text);
+  background: linear-gradient(180deg, var(--key-face-1), var(--key-face-2));
+  border: 1px solid var(--key-edge);
+  border-radius: 9px;
+  box-shadow: inset 0 1px 0 var(--key-gloss), 0 2px 0 var(--key-edge);
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.18s ease, transform 0.08s ease, box-shadow 0.08s ease;
+}
+
+.pad__key:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 4px var(--key-drop);
+}
+
+html[data-theme="dark"] .pad__key:hover {
+  background: linear-gradient(180deg, #4b3f2c, var(--key-face-2));
+}
+
+/* 退格键：用铜棕色，和数字键区分 */
+.pad__key--soft {
+  color: var(--op-text);
+}
+
+/* 确定键：占一整行，用和计算器等号键一样的枣红配色，作为视觉焦点 */
+.pad__key--ok {
+  grid-column: span 3;
+  color: #f8ecd2;
+  background: linear-gradient(180deg, #a8503c, #7d3325);
+  border-color: #63281c;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 226, 190, 0.35),
+    0 2px 0 #63281c;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* ============================================================
+ * 5. 底部操作按钮
+ * ============================================================ */
+.game__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;   /* 按钮靠右排列 */
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* 「再来一局」按钮：圆角矩形，配色沿用等号键的红 */
+.game__again {
+  padding: 9px 22px;
+  font-family: var(--font-serif);
+  font-size: 0.86rem;
+  letter-spacing: 0.12em;
+  color: #f8ecd2;
+  background: linear-gradient(180deg, #a8503c, #7d3325);
+  border: 1px solid #63281c;
+  border-radius: 10px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 226, 190, 0.35),
+    0 2px 0 #63281c,
+    0 6px 14px -6px rgba(110, 42, 26, 0.6);
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.08s ease;
+}
+
+.game__again:hover {
+  background: linear-gradient(180deg, #b85a44, #8c3a2a);
+}
+
+.game__again:active {
+  transform: translateY(2px);
+}
+
+/* ============================================================
+ * 6. 结算界面
+ * ============================================================ */
+.game__over-title {
+  margin: 2px 0 14px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-align: center;
+  color: var(--brass);
+}
+
+/* 成绩清单：每行「名称 …… 数值」，用 flex 的 space-between 对齐两端 */
+.game__summary {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.game__summary li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 13px;
+  background: rgba(255, 253, 245, 0.62);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+html[data-theme="dark"] .game__summary li {
+  background: rgba(255, 235, 200, 0.05);
+}
+
+.game__summary span {
+  font-size: 0.76rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+
+.game__summary strong {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+ * 7. 窄屏适配
+ * ============================================================ */
+@media (max-width: 520px) {
+  /* 小屏上统计格子挤成 2×2，字就不会被压扁 */
+  .game__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .game__question {
+    font-size: 1.7rem;
+  }
+
+  .game__actions {
+    justify-content: space-between;
+  }
+}

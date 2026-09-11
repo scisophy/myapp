@@ -1,0 +1,233 @@
+/* ============================================================
+ * 弹层（模态框 / Modal）通用样式 + 哈希面板
+ * ============================================================
+ * 【什么是「模态框」】
+ * 一块浮在所有内容上面的面板。打开时背景变暗，
+ * 用户得先关掉它才能操作别的地方。
+ *
+ * 它的结构由三层组成（哈希弹层和口算擂台弹层都用这套）：
+ *   .modal            铺满整个屏幕的「定位容器」
+ *     .modal__backdrop  半透明的黑幕（点它就能关闭）
+ *     .modal__panel     真正的面板，摆在屏幕正中间
+ *
+ * 层级关系靠 z-index 控制：数字越大，越显示在上面。
+ * ============================================================ */
+.modal {
+  position: fixed;     /* fixed = 钉在视口上，页面滚动也不动 */
+  inset: 0;            /* 上下左右都贴边 = 铺满整个屏幕 */
+  z-index: 50;         /* 比页面其它内容都高（它们没有设置 z-index，默认是 0） */
+  display: grid;
+  place-items: center; /* 让面板在屏幕正中央 */
+  padding: 20px;
+  overflow-y: auto;    /* 屏幕很矮时允许整体滚动，避免面板顶部被裁掉 */
+}
+
+/* 【必须写这一条】因为上面设了 display:grid，
+   会盖住 hidden 属性自带的 display:none 效果。
+   所以这里显式声明：带 hidden 属性时不显示。 */
+.modal[hidden] {
+  display: none;
+}
+
+/* 半透明黑幕 */
+.modal__backdrop {
+  position: absolute;  /* 相对 .modal 定位 */
+  inset: 0;
+  background: rgba(46, 32, 14, 0.52);
+  -webkit-backdrop-filter: blur(3px); /* Safari 需要加前缀 */
+  backdrop-filter: blur(3px);         /* 毛玻璃：把下层内容糊掉，突出弹层 */
+  animation: veil-in 0.2s ease;
+}
+
+@keyframes veil-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* 弹层面板本体 */
+.modal__panel {
+  position: relative;  /* 关键：让它显示在黑幕之上（同一层里，后面的元素在上） */
+  width: min(540px, 100%); /* min() 取较小值：宽屏最多 540px，窄屏占满 */
+  max-height: 100%;
+  padding: 18px 20px 20px;
+  border-radius: 22px;
+  background: linear-gradient(170deg, var(--card-1), var(--card-2));
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--card-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  /* 出场动画：从下方轻轻浮上来并放大一点点。
+     cubic-bezier 是自定义的缓动曲线，会让动作尾部更柔和 */
+  animation: panel-in 0.26s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+html[data-theme="dark"] .modal__panel {
+  box-shadow: var(--card-shadow), inset 0 1px 0 rgba(255, 214, 148, 0.12);
+}
+
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.975); }
+  to   { opacity: 1; transform: none; }  /* transform:none 即回到原始位置和大小 */
+}
+
+/* -------------------- 弹层标题栏 -------------------- */
+.hash__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* 标题靠左、关闭按钮靠右 */
+  padding: 0 2px 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.hash__head h2 {
+  margin: 0;
+  font-size: 0.94rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;  /* 大字距，呼应全局的古典排版 */
+  color: var(--ink);
+}
+
+/* 关闭按钮里的 ✕ 符号 */
+.hash__close {
+  font-size: 1rem;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+/* -------------------- 哈希面板：输入区 -------------------- */
+.hash__input {
+  display: block;
+  width: 100%;
+  min-height: 92px;   /* 至少能舒服地写两行 */
+  max-height: 200px;
+  padding: 11px 13px;
+  font-family: var(--font-serif); /* 表单元素不会自动继承字体，要显式写 */
+  font-size: 0.92rem;
+  line-height: 1.7;
+  color: var(--ink);
+  background: rgba(255, 253, 245, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  /* inset 内阴影，做出「凹进去的纸槽」的感觉 */
+  box-shadow: inset 0 2px 6px rgba(120, 94, 52, 0.14);
+  resize: vertical;   /* 允许用户自己往下拖高，但不能左右拖（会破坏布局） */
+}
+
+.hash__input:focus {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+}
+
+/* ::placeholder 专门控制输入框里那段灰灰的提示文字 */
+.hash__input::placeholder {
+  color: var(--ink-soft);
+  opacity: 0.85;
+}
+
+html[data-theme="dark"] .hash__input {
+  background: rgba(255, 235, 200, 0.06);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* -------------------- 哈希面板：算法切换按钮组 -------------------- */
+.hash__algs {
+  display: flex;
+  flex-wrap: wrap;      /* 一行放不下就换行（窄屏时很有用） */
+  gap: 6px;
+  margin: 14px 0 12px;
+}
+
+.hash__alg {
+  flex: 1;              /* 每个按钮等分宽度 */
+  min-width: 74px;      /* 但不能窄到挤不下文字 */
+  padding: 8px 6px;
+  font-family: var(--font-serif);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  background: linear-gradient(180deg, var(--key-face-1), var(--key-face-2));
+  border: 1px solid var(--key-edge);
+  border-radius: 9px;
+  box-shadow: inset 0 1px 0 var(--key-gloss), 0 2px 0 var(--key-edge);
+  cursor: pointer;
+  transition: color 0.18s ease, transform 0.08s ease, box-shadow 0.08s ease;
+}
+
+.hash__alg:hover {
+  color: var(--brass);
+}
+
+/* is-active = 当前选中的算法。
+   做成「陷进去」的样子，和没选中的凸起按钮形成对比 */
+.hash__alg.is-active {
+  color: var(--op-text);
+  border-color: var(--brass);
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 5px var(--key-drop);
+}
+
+/* -------------------- 哈希面板：结果显示区 -------------------- */
+/* 复用显示屏那套「墨绿 LCD + 黄铜镶边」的外观，保持整体风格一致 */
+.hash__out {
+  padding: 12px 14px 14px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--lcd-1), var(--lcd-2));
+  border: 2px solid var(--line-strong);
+  box-shadow:
+    inset 0 2px 10px rgba(0, 0, 0, 0.55),
+    0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* 结果区顶部的一行小字：左边是算法名，右边是位数 */
+.hash__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  color: var(--lcd-dim);
+}
+
+/* 哈希值本体。
+   用等宽字体（monospace），因为十六进制是一堆 0-9a-f，
+   等宽字体的每个字符宽度相同，看起来才整齐、不容易看错位 */
+.hash__value {
+  display: block;
+  margin-top: 8px;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.82rem;
+  line-height: 1.65;
+  letter-spacing: 0.02em;
+  color: var(--lcd-text);
+  text-shadow: 0 0 10px var(--lcd-glow);
+  word-break: break-all;  /* 强制在任意位置换行：哈希是一长串没有空格的字符，
+                             不写这行会直接冲出面板外面 */
+  -webkit-user-select: all; /* Safari 需要带前缀的写法 */
+  user-select: all;         /* 双击时整段选中，方便自己手动复制 */
+}
+
+/* 没有输入内容时的占位状态（显示一个短横线） */
+.hash__value.is-empty {
+  color: var(--lcd-dim);
+  text-shadow: none;
+}
+
+/* 出错时的提示状态（比如浏览器不支持该算法） */
+.hash__value.is-error {
+  font-family: var(--font-serif);
+  font-size: 0.76rem;
+  line-height: 1.7;
+  color: #e39a72;
+  text-shadow: none;
+}
+
+.hash__actions {
+  display: flex;
+  justify-content: flex-end; /* 复制按钮靠右 */
+  margin-top: 10px;
+}
+
+/* 弹层里的复制按钮，稍微缩小一点以适配紧凑的布局 */
+.hash__actions .text-btn {
+  padding: 5px 12px;
+  font-size: 0.74rem;
+}

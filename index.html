@@ -1,15 +1,18 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     【这个文件是什么】
-     index.html 是网页的「骨架 / 结构」，只负责摆放内容，
-     不负责好看（颜色样式在 style.css），也不负责计算（逻辑在 script.js）。
+    【这个文件是什么】
+    index.html 是网页的「骨架 / 结构」，只负责摆放内容，
+    不负责好看（颜色样式在 src/styles/ 里），也不负责计算（逻辑在 src/ 里）。
 
-     HTML 的工作方式：用一对对「标签」把内容包起来，形成一棵树。
-     例如 <div class="calc"> ... </div> 表示这里是一个区块。
+    HTML 的工作方式：用一对对「标签」把内容包起来，形成一棵树。
+    例如 <div class="calc"> ... </div> 表示这里是一个区块。
 
-     浏览器读文件的顺序是从上到下，所以我们把 <script> 放在最后一行，
-     保证 JS 执行时，页面里的按钮都已经存在了。
-     ============================================================ -->
+    【Vite 项目的特殊之处】
+    1. 只有一个 index.html，放在项目根目录，Vite 把它当「大门」。
+    2. 不再用 <link> 引 CSS，也不再引多个 <script>，
+       只保留下面那一句 <script type="module">，其余资源全由它 import 进来。
+    3. Vite 会把所有资源打包、压缩，最后生成 dist 目录用于上线。
+    ============================================================ -->
 
 <!-- lang="zh-CN" 告诉浏览器/屏幕阅读器：这个页面是简体中文 -->
 <!-- data-theme="light" 是自定义属性，用来记录当前主题。
@@ -30,10 +33,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <!-- 浏览器标签页上显示的标题 -->
-  <title>计算器 · Calculator</title>
+  <title>计算器 · 哈希 · 口算擂台</title>
 
-  <!-- 引入外部样式表。href 是文件路径，这里是同目录下的 style.css -->
-  <link rel="stylesheet" href="style.css" />
+  <!-- 说明这个页面用什么颜色，让手机浏览器的地址栏也跟着变色 -->
+  <meta name="theme-color" content="#d9c8a4" />
+
+  <!-- 注意：这里没有 <link rel="stylesheet">。
+       CSS 是通过 src/main.js 里的 import "./styles/base.css" 引进来的，
+       这是 Vite 的推荐做法：由 JS 统一管理资源依赖。
+       这么做还有个好处——打包时 Vite 能自动压缩、合并这些 CSS。 -->
 </head>
 
 <body>
@@ -91,6 +99,17 @@
                  所以用井号当图标最直观 -->
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M9.5 4 7.5 20M16.5 4l-2 16M4 9.5h16M3.5 14.5h16" />
+            </svg>
+          </button>
+
+          <!-- 【新增】口算擂台按钮：点开一个弹层，限时练口算 -->
+          <button id="gameBtn" class="icon-btn" type="button" title="口算擂台" aria-label="口算擂台" aria-expanded="false">
+            <!-- 图标画的是一个靶子：三个同心圆，越往里越小，
+                 和外层 .icon-btn svg 的 stroke 样式配合，就是一个靶心 -->
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="8.4" />
+              <circle cx="12" cy="12" r="4" />
+              <circle cx="12" cy="12" r="0.7" />
             </svg>
           </button>
 
@@ -256,15 +275,10 @@
                 placeholder="在这里输入任意文本（中文、英文、数字都行），下面会实时算出它的哈希值…"></textarea>
 
       <!-- 算法切换按钮组。
-           每个按钮用 data-alg 记录自己的算法名，JS 读 button.dataset.alg 就能知道点的是谁。
-           这和计算器按键用 data-value 是同一套思路。 -->
-      <div class="hash__algs" id="hashAlgs" role="group" aria-label="选择哈希算法">
-        <!-- 默认选中 MD5，所以它多一个 is-active 类 -->
-        <button class="hash__alg is-active" type="button" data-alg="MD5">MD5</button>
-        <button class="hash__alg" type="button" data-alg="SHA-1">SHA-1</button>
-        <button class="hash__alg" type="button" data-alg="SHA-256">SHA-256</button>
-        <button class="hash__alg" type="button" data-alg="SHA-512">SHA-512</button>
-      </div>
+           注意：这 4 个按钮不在 HTML 里写死，而是由 src/app/hashPanel.js
+           根据算法列表动态生成的。这样以后要加 SM3，只改那个数组就行。
+           role="group" 告诉读屏软件「这几个按钮是一组的」 -->
+      <div class="hash__algs" id="hashAlgs" role="group" aria-label="选择哈希算法"></div>
 
       <!-- 结果显示区 -->
       <div class="hash__out">
@@ -285,9 +299,111 @@
     </section>
   </div>
 
-  <!-- 引入脚本。写在 </body> 前是为了保证上面的按钮都已经创建好了，
-       否则 JS 可能找不到按钮而报错 -->
-  <script src="script.js"></script>
+  <!-- ============================================================
+       口算擂台弹层
+       ============================================================
+       结构和哈希弹层完全一样（.modal → 黑幕 + 面板）。
+       区别在于面板里有「三块互斥的界面」，同一时刻只显示其中一块：
+
+         #gameSetup  选关卡   （对应 state.status === "idle"）
+         #gamePlay   答题中   （对应 state.status === "playing"）
+         #gameOver   结算     （对应 state.status === "over"）
+
+       JS 靠切换 hidden 属性来决定显示哪一块，
+       这就是「一个状态决定一块界面」的写法，逻辑最清楚。
+       ============================================================ -->
+  <div class="modal" id="gameModal" hidden>
+    <div class="modal__backdrop"></div>
+
+    <section class="modal__panel panel--game"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="gameTitle">
+
+      <div class="game__head">
+        <h2 id="gameTitle">口算擂台</h2>
+        <button id="gameCloseBtn" class="icon-btn hash__close" type="button" aria-label="关闭">✕</button>
+      </div>
+
+      <!-- ---------- 第一块：选关卡 ---------- -->
+      <div id="gameSetup">
+        <p class="game__tip">
+          规则：答对得分，连击越高单题得分越高（3 秒内答完还有手速奖励）；
+          答错扣一条命，跳过扣 5 秒。时间归零或生命用光就结算。
+        </p>
+        <!-- 关卡卡片由 src/game/panel.js 根据 LEVELS 数组动态生成 -->
+        <div class="game__levels" id="gameLevels"></div>
+      </div>
+
+      <!-- ---------- 第二块：答题中 ---------- -->
+      <div id="gamePlay" hidden>
+        <!-- 顶部四项数据。aria-live="polite" 让读屏软件能播报变化 -->
+        <div class="game__stats">
+          <div class="stat">
+            <span class="stat__label">得分</span>
+            <strong id="gameScore" aria-live="polite">0</strong>
+          </div>
+          <div class="stat">
+            <span class="stat__label">连击</span>
+            <strong id="gameCombo">—</strong>
+          </div>
+          <div class="stat">
+            <span class="stat__label">生命</span>
+            <strong id="gameLives">♥♥♥</strong>
+          </div>
+          <div class="stat">
+            <span class="stat__label">剩余</span>
+            <strong id="gameTime" aria-live="off">60</strong>
+          </div>
+        </div>
+
+        <!-- 题目与答题区，做成和计算器显示屏同款的墨绿 LCD 外观 -->
+        <div class="game__stage">
+          <div class="game__question" id="gameQuestion">—</div>
+
+          <!-- 答案输入框。
+               inputmode="numeric" 会让手机弹出「纯数字键盘」，输入更方便；
+               autocomplete="off" 关掉浏览器的自动填充（否则会挡住屏幕）；
+               spellcheck="false" 关掉拼写检查 -->
+          <input id="gameAnswer"
+                 class="game__answer"
+                 type="text"
+                 inputmode="numeric"
+                 autocomplete="off"
+                 spellcheck="false"
+                 placeholder="写下答案"
+                 aria-label="答案" />
+
+          <!-- 反馈提示：答对 / 答错 / 跳过 都显示在这里 -->
+          <p class="game__feedback" id="gameFeedback" aria-live="polite"></p>
+        </div>
+
+        <!-- 虚拟数字键盘，由 JS 按手机计算器的习惯生成 -->
+        <div class="game__pad" id="gamePad"></div>
+
+        <div class="game__actions">
+          <button id="gameQuitBtn" class="text-btn" type="button">结束本局</button>
+          <button id="gameSkipBtn" class="text-btn" type="button">跳过 (−5 秒)</button>
+        </div>
+      </div>
+
+      <!-- ---------- 第三块：结算 ---------- -->
+      <div id="gameOver" hidden>
+        <h3 class="game__over-title" id="gameOverTitle">本局结束</h3>
+        <!-- 成绩清单由 JS 填充 -->
+        <ul class="game__summary" id="gameSummary"></ul>
+        <div class="game__actions">
+          <button id="gameAgainBtn" class="game__again" type="button">再来一局</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- 引入脚本。type="module" 表示这是一个「ES 模块」：
+       它可以在文件里用 import 语句引入别的文件，
+       而且默认带「延迟执行」的效果 —— 浏览器会等 HTML 全部解析完才跑它，
+       所以 main.js 里可以直接 getElementById，不怕找不到元素。 -->
+  <script type="module" src="/src/main.js"></script>
 </body>
 
 </html>

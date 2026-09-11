@@ -1,0 +1,278 @@
+/* ============================================================
+ * 基础样式：主题变量、重置、页面背景
+ * ============================================================
+ * 【CSS 的写法】
+ *   选择器 { 属性: 值; }
+ *   例如 .key { color: red; } 意思是「所有 class 含 key 的元素，文字变红」。
+ *   每条属性以分号结尾，写错了浏览器会默默忽略，不会报错（这点和 JS 不同）。
+ *
+ * 【Vite 怎么处理这些 CSS】
+ *   在 main.js 里写 import "./styles/base.css"，Vite 就会把这些文件
+ *   引进页面；执行 npm run build 时还会自动压缩合并成一个小文件。
+ * ============================================================ */
+
+
+/* ============================================================
+ * 1. 主题变量（CSS 自定义属性 / CSS 变量）
+ * ------------------------------------------------------------
+ * 以 -- 开头的属性就是「变量」，可以存颜色、尺寸等任何值，
+ * 用 var(--变量名) 来取用。
+ *
+ * 为什么要用变量？
+ *   原来我写了几十处 #3a2e20，一旦想换色调就要改几十个地方。
+ *   现在只需在下面改一次 --ink 的值，全站自动更新。
+ *
+ * :root 表示「整个文档的根元素 html」，所以写在这里的变量全页面都能用。
+ * ============================================================ */
+:root {
+  /* color-scheme 告诉浏览器：这个页面按「亮色模式」渲染，
+     这样滚动条、输入框等浏览器自带控件也会是亮色外观 */
+  color-scheme: light;
+
+  /* 字体：从左边开始找，谁有就用谁。
+     Georgia / Times New Roman 是西文衬线体（古典感），
+     Songti SC / SimSun 是中文宋体，最后兜底用任意衬线体 */
+  --font-serif: Georgia, "Times New Roman", "Songti SC", SimSun, "Noto Serif SC",
+    STSong, serif;
+
+  /* ---- 纸与墨（明主题的文字与底色）---- */
+  --ink: #3a2e20;          /* 主文字色：深褐，像墨写在旧纸上 */
+  --ink-soft: #7c6a50;     /* 次要文字色：浅一些的褐色 */
+  --desk-1: #efe2c6;       /* 桌面渐变的亮端 */
+  --desk-2: #d9c8a4;       /* 桌面渐变的中间色 */
+  --desk-3: #bda87f;       /* 桌面渐变的暗端 */
+  --paper-1: #f8efdc;      /* 纸张亮面 */
+  --paper-2: #ecdfc4;      /* 纸张暗面 */
+  --line: #c3ac85;         /* 细描边（内框、表格线） */
+  --line-strong: #9d8459;  /* 粗描边（外框） */
+
+  /* ---- 黄铜与朱红（点缀色）---- */
+  --brass: #a2743a;        /* 黄铜色：用于强调、悬停 */
+  --brass-soft: #c9a464;   /* 浅黄铜色 */
+  --red: #8e3a2a;          /* 朱红：用于 AC、清空等"危险"操作 */
+  --green: #4a6b3f;        /* 苔绿：用于「答对了」这种正向提示 */
+
+  /* ---- 机械按键的立体感参数 ----
+     键帽的立体效果其实由三层叠加而成：
+       1) 顶部一圈白色高光（模拟光从上方照下来）
+       2) 底部 2px 的实体边（模拟键帽的厚度）
+       3) 下方一层模糊投影（模拟键帽悬在面板上）
+     下面这几个变量就是这三层用到的颜色 */
+  --key-face-1: #fdf8ec;   /* 键帽表面渐变亮端 */
+  --key-face-2: #efe3ca;   /* 键帽表面渐变暗端 */
+  --key-edge: #c6b18e;     /* 键帽的厚度边 */
+  --key-text: #3a2e20;     /* 键帽上的文字色 */
+  --key-gloss: rgba(255, 255, 255, 0.88); /* 顶部高光（半透明白） */
+  --key-drop: rgba(84, 62, 32, 0.42);     /* 投影颜色（半透明褐） */
+
+  /* 运算符键单独一套配色，让它们和数字键区分开 */
+  --op-face-1: #f5e8cd;
+  --op-face-2: #e3d1ac;
+  --op-text: #8a5f27;      /* 运算符文字用铜棕色 */
+
+  /* 卡片（计算器主体）表面色 */
+  --card-1: #faf3e3;
+  --card-2: #eee0c4;
+  /* 卡片投影。写了两层，一近一远，看起来更自然 */
+  --card-shadow: 0 24px 48px -20px rgba(88, 66, 34, 0.55),
+    0 46px 80px -40px rgba(88, 66, 34, 0.45);
+
+  /* ---- 显示屏（墨绿 LCD）---- */
+  --lcd-1: #22322a;        /* LCD 渐变亮端 */
+  --lcd-2: #0d1613;        /* LCD 渐变暗端 */
+  --lcd-line: rgba(201, 164, 100, 0.32); /* 屏幕内的黄铜内圈 */
+  --lcd-text: #e8cb84;     /* 屏幕上数字的颜色：琥珀金 */
+  --lcd-dim: rgba(232, 203, 132, 0.55);  /* 算式行的暗金色 */
+  --lcd-glow: rgba(232, 203, 132, 0.32); /* 数字的发光效果 */
+
+  --radius: 20px;
+}
+
+/* ============================================================
+ * 2. 暗色主题（「夜墨」）
+ * ------------------------------------------------------------
+ * 技巧：这里选择器是 html[data-theme="dark"]，
+ * 意思是「当 html 标签上有 data-theme="dark" 属性时」套用下面这套变量。
+ * index.html 里 <html data-theme="light">，JS 点按钮时把它改成 "dark"，
+ * 于是所有 var(--xxx) 自动切换到暗色版本 —— 这就是主题切换的全部原理。
+ *
+ * 注意：变量名和上面完全一样，只是值不同。
+ * 所以下面的样式规则一行都不用改，就能整体换肤。
+ * ============================================================ */
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  --ink: #efe2c6;          /* 暗主题下文字变浅（米黄） */
+  --ink-soft: #a8926c;
+  --desk-1: #322a20;       /* 桌面变成深胡桃木色 */
+  --desk-2: #1d1712;
+  --desk-3: #100c09;
+  --paper-1: #2c241b;
+  --paper-2: #221b13;
+  --line: #4f4233;
+  --line-strong: #8a7452;
+
+  --brass: #c39a54;        /* 暗背景上黄铜要更亮一点才看得清 */
+  --brass-soft: #8d7440;
+  --red: #d2634c;
+  --green: #8fb27a;
+
+  --key-face-1: #403626;
+  --key-face-2: #2c2419;
+  --key-edge: #17120e;
+  --key-text: #f0e3c7;
+  --key-gloss: rgba(255, 255, 255, 0.09); /* 暗色下高光很弱，不然键帽发白 */
+  --key-drop: rgba(0, 0, 0, 0.6);
+
+  --op-face-1: #50412d;
+  --op-face-2: #382d1e;
+  --op-text: #e2ba79;
+
+  --card-1: #2e2519;
+  --card-2: #221b13;
+  --card-shadow: 0 24px 48px -20px rgba(0, 0, 0, 0.8),
+    0 46px 80px -40px rgba(0, 0, 0, 0.7);
+
+  --lcd-1: #1a2620;
+  --lcd-2: #080e0c;
+  --lcd-text: #ecca84;
+}
+
+
+/* ============================================================
+ * 3. 全局重置与页面背景
+ * ============================================================ */
+
+/* * 是「通配选择器」，代表所有元素。
+   box-sizing: border-box 是一个非常重要的设置，建议每个项目都写：
+   它让「宽度」包含内边距和边框。
+   不写的话，你设 width:100px + padding:10px，实际会占 120px 宽，很容易算错。 */
+* {
+  box-sizing: border-box;
+}
+
+/* 让 html 和 body 的高度撑满整个视口（viewport，即浏览器可视区域），
+   这样才能用 flex 把计算器垂直居中 */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  /* 去掉浏览器默认的 8px 外边距 */
+  margin: 0;
+  /* 内边距：上下 24px，左右 24px。小屏幕上会由媒体查询改小 */
+  padding: 24px;
+
+  /* ↓↓↓ flex 布局三连：让内容在页面正中 ↓↓↓
+     display:flex 把 body 变成「弹性容器」，子元素默认横向排列；
+     align-items 控制「交叉轴（这里是垂直方向）」对齐；
+     justify-content 控制「主轴（这里是水平方向）」对齐。
+     两者都设成 center，内容就水平垂直都居中。 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-family: var(--font-serif); /* var() 就是取上面定义的变量 */
+  color: var(--ink);
+
+  /* 背景：radial-gradient 是「径向渐变」，从中心向外扩散。
+     读法：从 50% -8% 这个点开始（横向居中、纵向略高于顶部），
+     依次过渡 --desk-1 → --desk-2（62% 位置）→ --desk-3 */
+  background: radial-gradient(120% 95% at 50% -8%, var(--desk-1), var(--desk-2) 62%, var(--desk-3));
+
+  overflow-x: hidden; /* 禁止横向滚动条（防止装饰层溢出让页面能左右拖） */
+  /* 颜色变化时用 0.4 秒平滑过渡，主题切换就不会生硬跳变 */
+  transition: background 0.4s ease, color 0.4s ease;
+}
+
+/* ============================================================
+ * 伪元素 ::before / ::after 是什么？
+ * ------------------------------------------------------------
+ * 它们让你「凭空」造出两个元素，不用在 HTML 里写标签。
+ * 用法固定三步：
+ *   1) content: "";          必须写，哪怕是空字符串，否则不显示
+ *   2) position: fixed/absolute;  定位到想要的位置
+ *   3) 设置宽高或 inset（上下左右的距离）
+ * 下面用它们给页面加了两层装饰：暗角 + 纸张颗粒。
+ * ============================================================ */
+
+/* ::before —— 暗角与旧纸泛黄效果 */
+body::before {
+  content: "";
+  position: fixed;   /* fixed 表示固定在视口上，页面滚动也不会动 */
+  inset: 0;          /* inset:0 是 top/right/bottom/left 全为 0 的简写，等于铺满全屏 */
+  z-index: -2;       /* 放到最底层 */
+  pointer-events: none; /* 让鼠标事件「穿透」这一层，不影响点击下面的按钮 */
+  /* 两层渐变叠加：
+     - 第一层：中间透明、边缘发暗，形成「暗角」（vignette）
+     - 第二层：左上角一团暖白光，模拟光源 */
+  background:
+    radial-gradient(70% 55% at 50% 45%, transparent 55%, rgba(96, 72, 38, 0.22)),
+    radial-gradient(40% 40% at 12% 8%, rgba(255, 246, 222, 0.35), transparent 70%);
+}
+
+/* ::after —— 纸张纤维颗粒
+   repeating-linear-gradient 是「重复的线性渐变」：
+   0 到 1px 画一条线，1px 到 3px 是透明，然后不断重复，
+   就得到一排细密横线，叠加竖线后就是类似纸张纹理的效果。 */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.75; /* 整体调淡，纹路不能太抢眼 */
+  background-image:
+    repeating-linear-gradient(0deg, rgba(94, 72, 40, 0.045) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(94, 72, 40, 0.035) 0 1px, transparent 1px 4px);
+}
+
+/* 暗色主题下重新定义这两个装饰层的颜色（覆盖上面的规则） */
+html[data-theme="dark"] body::before {
+  background:
+    radial-gradient(70% 55% at 50% 45%, transparent 50%, rgba(0, 0, 0, 0.55)),
+    radial-gradient(40% 40% at 12% 8%, rgba(196, 154, 84, 0.12), transparent 70%);
+}
+
+html[data-theme="dark"] body::after {
+  opacity: 0.5;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.16) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(255, 226, 170, 0.02) 0 1px, transparent 1px 4px);
+}
+
+
+/* ============================================================
+ * 4. 统一的键盘焦点样式
+ * ------------------------------------------------------------
+ * :focus-visible 表示「用键盘 Tab 键选中时」。
+ * 只给键盘用户显示外框，鼠标点击时不显示，兼顾无障碍和美观。
+ * ============================================================ */
+.icon-btn:focus-visible,
+.key:focus-visible,
+.text-btn:focus-visible,
+.history__item:focus-visible,
+.hash__alg:focus-visible,
+.level:focus-visible,
+.pad__key:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;   /* 外框和元素之间留 2px 空隙 */
+}
+
+
+/* ============================================================
+ * 5. 尊重用户的「减少动态效果」偏好
+ * ------------------------------------------------------------
+ * 有些用户（比如容易眩晕的人）会在系统里开启「减少动画」设置。
+ * 这段媒体查询会检测到该设置，然后关掉我们的动画。
+ * 这是无障碍（a11y）的良好实践。
+ * ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .history.is-open,
+  .modal__backdrop,
+  .modal__panel,
+  .game__feedback {
+    animation: none;
+  }
+}
